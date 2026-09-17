@@ -11,7 +11,7 @@ export function Topbar({
 }) {
   return (
     <header className="bg-court-dark text-chalk">
-      <div className="mx-auto flex max-w-[1100px] flex-wrap items-center justify-between gap-3 px-5 py-5 sm:px-7">
+      <div className="mx-auto flex max-w-[1100px] flex-wrap items-center justify-between gap-x-3 gap-y-2 px-4 py-3.5 sm:px-7 sm:py-5">
         <div className="flex items-center gap-3">
           <span className="font-display text-ball inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-[1.5px] border-[var(--brass)] text-[19px] italic">
             M

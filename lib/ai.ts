@@ -242,12 +242,11 @@ export type ExerciseContext = {
 
 function mockExerciseText(context: ExerciseContext): string {
   if (context.approved) {
-    return `${context.muscleGroup} tränades senast hårt på ${context.hardDayLabel ?? "ingen dag i schemat"}, så till ${context.requestedDayLabel} har kroppen hunnit återhämta sig. Passet krockar inte med tränarens plan för perioden — kör på, men avsluta med lite rörlighet.`;
+    return context.hardDayLabel
+      ? `${context.muscleGroup} tränades senast hårt på ${context.hardDayLabel}, så till ${context.requestedDayLabel} har kroppen hunnit återhämta sig. Passet krockar inte med tränarens plan för perioden — kör på, men avsluta med lite rörlighet.`
+      : `Det finns inget hårt ${context.muscleGroup.toLowerCase()}-pass i ditt schema den här veckan, så ${context.requestedDayLabel} är en bra dag att lägga det på. Håll dig till tränarens upplägg i övrigt och avsluta med lite rörlighet.`;
   }
-  const alternative = context.suggestedDayLabel
-    ? `Lägg passet på ${context.suggestedDayLabel} istället`
-    : "Lägg passet på en vilodag istället";
-  return `Du tränar redan ${context.muscleGroup.toLowerCase()} hårt på ${context.hardDayLabel ?? "en närliggande dag"}${context.hardFocus ? ` (${context.hardFocus})` : ""}, och ${context.requestedDayLabel} ligger för nära för att kroppen ska hinna återhämta sig — det ökar risken för skada och att du missar ett kommande pass eller match. ${alternative}, eller kör de lättare övningarna nedan nu.`;
+  return `Du tränar redan ${context.muscleGroup.toLowerCase()} hårt på ${context.hardDayLabel ?? "en närliggande dag"}${context.hardFocus ? ` — ${context.hardFocus}` : ""}, och ${context.requestedDayLabel} ligger för nära för att kroppen ska hinna återhämta sig. Det ökar risken för skada och att du missar ett kommande pass eller match. Kör de lättare övningarna nedan nu om du ändå vill träna.`;
 }
 
 /**
