@@ -32,7 +32,9 @@ export async function POST(request: Request) {
         where: { playerId: player.id },
         orderBy: { weekday: "asc" },
       }),
-      prisma.teamPlan.findUnique({ where: { clubId: player.clubId } }),
+      player.clubId
+        ? prisma.teamPlan.findUnique({ where: { clubId: player.clubId } })
+        : Promise.resolve(null),
     ]);
 
     // Beslutet fattas här, i kod — AI:n formulerar bara texten runt det.

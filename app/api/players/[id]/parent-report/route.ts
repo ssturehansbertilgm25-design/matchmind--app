@@ -1,21 +1,29 @@
 import { NextResponse } from "next/server";
-import { ApiError, requireCoach, requirePlayerInClub } from "@/lib/auth";
+import { prisma } from "@/lib/db";
+import { ApiError, requireRole, requirePlayerInScope } from "@/lib/auth";
 import { apiError } from "@/lib/api";
-import { buildParentReport, getClubPlayers } from "@/lib/players";
+import { buildParentReport, summarizePlayer } from "@/lib/players";
+import { ROLE } from "@/lib/constants";
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const coach = await requireCoach();
+    const viewer = await requireRole(ROLE.COACH, ROLE.FOUNDER);
     const { id } = await params;
-    const player = await requirePlayerInClub(coach, id);
+    await requirePlayerInScope(viewer, id);
 
-    const summaries = await getClubPlayers(coach.clubId);
-    const summary = summaries.find((item) => item.id === id);
-    if (!summary) throw new ApiError(404, "Spelaren finns inte i din klubb");
+    const player = await prisma.user.findUnique({
+      where: { id },
+      include: {
+        profile: true,
+        reflections: { orderBy: { createdAt: "asc" } },
+        flags: { where: { resolvedAt: null } },
+      },
+    });
+    if (!player) throw new ApiError(404, "Spelaren finns inte");
 
     // Rapporten byggs enbart av aggregerad data — ingen reflektionstext.
     return NextResponse.json({
-      report: buildParentReport(summary),
+      report: buildParentReport(summarizePlayer(player)),
       guardianEmail: player.profile?.guardianEmail ?? null,
       guardianConsent: player.profile?.guardianConsent ?? false,
     });

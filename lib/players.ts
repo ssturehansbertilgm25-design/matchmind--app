@@ -40,9 +40,43 @@ function distinctTags(tags: (string | null)[]): string[] {
   return [...new Set(tags.filter((tag): tag is string => Boolean(tag)))];
 }
 
+type PlayerWithHistory = {
+  id: string;
+  name: string;
+  profile: { level: string; trainingAttendance: number } | null;
+  reflections: { mood: number; tag: string | null; createdAt: Date }[];
+  flags: { type: string }[];
+};
+
+/** Räknar fram en spelares sammanställning. Samma underlag i tränar- och founder-vyn. */
+export function summarizePlayer(player: PlayerWithHistory): PlayerSummary {
+  const moods = player.reflections.map((reflection) => reflection.mood);
+  const last = player.reflections.at(-1) ?? null;
+  const daysSinceLastReflection = daysSince(last?.createdAt ?? null);
+  const attendance = player.profile?.trainingAttendance ?? 0;
+
+  return {
+    id: player.id,
+    name: player.name,
+    level: player.profile?.level ?? "—",
+    attendance,
+    moods,
+    lastMood: last?.mood ?? null,
+    tags: distinctTags(player.reflections.slice(-6).map((reflection) => reflection.tag)),
+    daysSinceLastReflection,
+    reflectionCount: player.reflections.filter(
+      (reflection) => reflection.createdAt.getTime() > Date.now() - PERIOD_DAYS * DAY_MS,
+    ).length,
+    risk: computeDropoutRisk({ moods, daysSinceLastReflection, attendance }),
+    needsFollowup: player.flags.some((flag) => flag.type === FLAG_TYPE.FOLLOWUP),
+    hasEscalation: player.flags.some((flag) => flag.type === FLAG_TYPE.ESCALATION),
+    improving: isImproving(moods),
+  };
+}
+
 export async function getClubPlayers(clubId: string): Promise<PlayerSummary[]> {
   const players = await prisma.user.findMany({
-    where: { clubId, role: ROLE.PLAYER },
+    where: { clubId, role: ROLE.PLAYER, isActive: true },
     include: {
       profile: true,
       reflections: { orderBy: { createdAt: "asc" } },
@@ -51,30 +85,7 @@ export async function getClubPlayers(clubId: string): Promise<PlayerSummary[]> {
     orderBy: { name: "asc" },
   });
 
-  return players.map((player) => {
-    const moods = player.reflections.map((reflection) => reflection.mood);
-    const last = player.reflections.at(-1) ?? null;
-    const daysSinceLastReflection = daysSince(last?.createdAt ?? null);
-    const attendance = player.profile?.trainingAttendance ?? 0;
-
-    return {
-      id: player.id,
-      name: player.name,
-      level: player.profile?.level ?? "—",
-      attendance,
-      moods,
-      lastMood: last?.mood ?? null,
-      tags: distinctTags(player.reflections.slice(-6).map((r) => r.tag)),
-      daysSinceLastReflection,
-      reflectionCount: player.reflections.filter(
-        (r) => r.createdAt.getTime() > Date.now() - PERIOD_DAYS * DAY_MS,
-      ).length,
-      risk: computeDropoutRisk({ moods, daysSinceLastReflection, attendance }),
-      needsFollowup: player.flags.some((flag) => flag.type === FLAG_TYPE.FOLLOWUP),
-      hasEscalation: player.flags.some((flag) => flag.type === FLAG_TYPE.ESCALATION),
-      improving: isImproving(moods),
-    };
-  });
+  return players.map(summarizePlayer);
 }
 
 /** Spelare som behöver uppmärksamhet först: flaggade, sedan risk, sedan lägst mående. */
@@ -164,6 +175,10 @@ export type CoachReflectionView = {
 };
 
 export type PlayerDetail = PlayerSummary & {
+  email: string;
+  birthYear: number | null;
+  guardianEmail: string | null;
+  guardianConsent: boolean;
   schedule: {
     weekday: number;
     time: string | null;
@@ -178,24 +193,22 @@ export type PlayerDetail = PlayerSummary & {
 };
 
 export async function getPlayerDetail(
-  clubId: string,
-  coachId: string,
+  viewerId: string,
   playerId: string,
 ): Promise<PlayerDetail | null> {
   const player = await prisma.user.findFirst({
-    where: { id: playerId, clubId, role: ROLE.PLAYER },
+    where: { id: playerId, role: ROLE.PLAYER },
     include: {
       profile: true,
       reflections: { orderBy: { createdAt: "asc" } },
       flags: { where: { resolvedAt: null }, orderBy: { createdAt: "desc" } },
       scheduleEntries: { orderBy: { weekday: "asc" } },
-      notesAboutMe: { where: { coachId } },
+      notesAboutMe: { where: { coachId: viewerId } },
     },
   });
   if (!player) return null;
 
-  const summaries = await getClubPlayers(clubId);
-  const summary = summaries.find((item) => item.id === playerId)!;
+  const summary = summarizePlayer(player);
 
   const aiSummary = await generateCoachSummary({
     name: summary.name,
@@ -210,6 +223,10 @@ export async function getPlayerDetail(
 
   return {
     ...summary,
+    email: player.email,
+    birthYear: player.profile?.birthYear ?? null,
+    guardianEmail: player.profile?.guardianEmail ?? null,
+    guardianConsent: player.profile?.guardianConsent ?? false,
     schedule: player.scheduleEntries.map((entry) => ({
       weekday: entry.weekday,
       time: entry.time,

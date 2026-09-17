@@ -2,16 +2,10 @@
 
 import { useEffect, useState } from "react";
 import type { ParentReport, PlayerDetail } from "@/lib/players";
-import { DAYS, INTENSITY_LABEL } from "@/lib/constants";
 import { Sparkline } from "./Sparkline";
+import { ScheduleEditor } from "./ScheduleEditor";
+import { ProfileEditor } from "./ProfileEditor";
 import { avatarColor, initials } from "./avatar";
-
-const PILL_CLASS: Record<string, string> = {
-  HIGH: "mm-pill-high",
-  MEDIUM: "mm-pill-medium",
-  LOW: "mm-pill-low",
-  REST: "mm-pill-rest",
-};
 
 export function PlayerPanel({ playerId, onClose }: { playerId: string; onClose: () => void }) {
   const [player, setPlayer] = useState<PlayerDetail | null>(null);
@@ -114,37 +108,19 @@ function PanelBody({ player }: { player: PlayerDetail }) {
         </div>
       </div>
 
-      <h3 className="mm-section-title mb-1 text-[17px]">Veckoschema</h3>
-      <table className="mb-6 w-full border-collapse text-[12.5px]">
-        <thead>
-          <tr>
-            {["Dag", "Tid", "Fokus", "Belastning"].map((header) => (
-              <th
-                key={header}
-                className="mm-label border-b-[1.5px] border-[var(--brass-soft)] px-2 py-1.5 text-left"
-              >
-                {header}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {player.schedule.map((entry) => (
-            <tr key={entry.weekday}>
-              <td className="border-line border-b px-2 py-2">{DAYS[entry.weekday]}</td>
-              <td className="border-line text-ink-soft border-b px-2 py-2 font-mono">
-                {entry.time ?? "—"}
-              </td>
-              <td className="border-line border-b px-2 py-2">{entry.focus}</td>
-              <td className="border-line border-b px-2 py-2">
-                <span className={`mm-pill ${PILL_CLASS[entry.intensity] ?? "mm-pill-rest"}`}>
-                  {INTENSITY_LABEL[entry.intensity] ?? entry.intensity}
-                </span>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <ProfileEditor
+        playerId={player.id}
+        initial={{
+          name: player.name,
+          level: player.level,
+          birthYear: player.birthYear,
+          attendance: player.attendance,
+          guardianEmail: player.guardianEmail,
+          guardianConsent: player.guardianConsent,
+        }}
+      />
+
+      <ScheduleEditor playerId={player.id} schedule={player.schedule} />
 
       <h3 className="mm-section-title mb-2 text-[17px]">Senaste reflektioner</h3>
       <div className="flex flex-col gap-2">

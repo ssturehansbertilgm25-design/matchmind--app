@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { ReflectionTab, type ReflectionHistoryItem } from "./ReflectionTab";
 import { SparringTab, type Clubmate } from "./SparringTab";
-import { ExerciseTab } from "./ExerciseTab";
+import { ExerciseTab, type ScheduleRow } from "./ExerciseTab";
 
 const TABS = [
   { id: "reflect", label: "Reflektion" },
@@ -20,6 +20,7 @@ export function PlayerApp({
   history,
   clubmates,
   todayWeekday,
+  schedule,
 }: {
   name: string;
   todayFocus: string | null;
@@ -27,6 +28,7 @@ export function PlayerApp({
   history: ReflectionHistoryItem[];
   clubmates: Clubmate[];
   todayWeekday: number;
+  schedule: ScheduleRow[];
 }) {
   const [tab, setTab] = useState<TabId>("reflect");
 
@@ -60,7 +62,9 @@ export function PlayerApp({
           />
         ) : null}
         {tab === "sparring" ? <SparringTab clubmates={clubmates} /> : null}
-        {tab === "exercises" ? <ExerciseTab todayWeekday={todayWeekday} /> : null}
+        {tab === "exercises" ? (
+          <ExerciseTab todayWeekday={todayWeekday} schedule={schedule} />
+        ) : null}
       </div>
     </>
   );

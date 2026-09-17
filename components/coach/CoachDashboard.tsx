@@ -4,6 +4,8 @@ import { useState } from "react";
 import type { ClubStats, PlayerSummary, WeeklyDigest } from "@/lib/players";
 import { Sparkline } from "./Sparkline";
 import { PlayerPanel } from "./PlayerPanel";
+import { CoachFlags } from "./CoachFlags";
+import { InvitePlayerCard } from "./InvitePlayerCard";
 import { avatarColor, initials } from "./avatar";
 
 export function CoachDashboard({
@@ -40,7 +42,11 @@ export function CoachDashboard({
         <StatCard value={stats.dropoutRiskCount} label="Risk för avhopp" tone="warn" />
       </div>
 
+      <CoachFlags />
+
       <TeamPlanCard initialText={teamPlan} />
+
+      <InvitePlayerCard />
 
       <h2 className="mm-section-title mb-3.5">
         Truppen{" "}

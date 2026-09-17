@@ -1,4 +1,7 @@
 import { PrismaClient } from "@prisma/client";
+import { reportEnvOnce } from "./env";
+
+reportEnvOnce();
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 

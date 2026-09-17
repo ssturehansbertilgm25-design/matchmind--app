@@ -9,8 +9,8 @@
     "lint": "eslint",
     "test": "vitest run",
     "db:reset": "prisma migrate reset --force --skip-generate",
-    "db:seed": "prisma db seed",
-    "seed": "prisma db seed"
+    "db:seed:demo": "prisma db seed",
+    "db:seed": "prisma db seed"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.126.0",

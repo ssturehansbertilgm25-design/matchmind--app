@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { DAYS, MUSCLE_GROUPS } from "@/lib/constants";
+import { DAYS, INTENSITY_LABEL, MUSCLE_GROUPS } from "@/lib/constants";
 import type { LoadDecision } from "@/lib/load";
 import type { Exercise } from "@/lib/exercises";
 import { LoadingDots } from "./PlayerApp";
@@ -13,13 +13,27 @@ type Result = {
   usedTeamPlan: boolean;
 };
 
-export function ExerciseTab({ todayWeekday }: { todayWeekday: number }) {
+export type ScheduleRow = {
+  weekday: number;
+  time: string | null;
+  focus: string;
+  intensity: string;
+};
+
+export function ExerciseTab({
+  todayWeekday,
+  schedule,
+}: {
+  todayWeekday: number;
+  schedule: ScheduleRow[];
+}) {
   const [mode, setMode] = useState<"now" | "extra">("now");
   const [muscleGroup, setMuscleGroup] = useState<string | null>(null);
   const [weekday, setWeekday] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<Result | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showSchedule, setShowSchedule] = useState(false);
 
   const ready = muscleGroup !== null && (mode === "now" || weekday !== null);
 
@@ -49,6 +63,42 @@ export function ExerciseTab({ todayWeekday }: { todayWeekday: number }) {
       <p className="font-display text-ink-soft mb-4 text-[14.5px] italic">
         Baserat på din tränares plan och ditt schema denna vecka
       </p>
+
+      {schedule.length ? (
+        <div className="border-line mb-4 rounded-[11px] border">
+          <button
+            type="button"
+            onClick={() => setShowSchedule((value) => !value)}
+            className="flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left"
+          >
+            <span className="text-[12.5px] font-semibold">Ditt veckoschema</span>
+            <span className="text-ink-soft font-mono text-[11px]">
+              {showSchedule ? "dölj ▴" : "visa ▾"}
+            </span>
+          </button>
+          {showSchedule ? (
+            <ul className="px-4 pb-3">
+              {schedule.map((entry) => (
+                <li
+                  key={entry.weekday}
+                  className={`border-line flex justify-between gap-3 border-b py-1.5 text-[12.5px] last:border-b-0 ${
+                    entry.weekday === todayWeekday ? "font-semibold" : ""
+                  }`}
+                >
+                  <span className="text-ink-soft w-10 shrink-0 font-mono">
+                    {DAYS[entry.weekday]}
+                  </span>
+                  <span className="flex-1">{entry.focus}</span>
+                  <span className="text-ink-soft">
+                    {entry.time ? `${entry.time} · ` : ""}
+                    {INTENSITY_LABEL[entry.intensity] ?? entry.intensity}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="mb-4 flex gap-2">
         {[

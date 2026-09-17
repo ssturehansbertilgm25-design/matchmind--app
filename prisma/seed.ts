@@ -11,8 +11,8 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
-const PASSWORD = "demo1234";
-const CLUB_NAME = "Apelryds Tennisklubb";
+const PASSWORD = "TennisDemo2026";
+const CLUB_NAME = "Demoklubben";
 
 const TEAM_PLAN = `Denna period: bygg upp benstyrka och explosivitet inför säsongsstart, men undvik tung underkroppsträning dagen innan matchdagar. Axlar/core tränas tungt en gång i veckan, aldrig två dagar i rad. Söndagar är alltid lätt rörlighet eller vila — ingen tung belastning.`;
 
@@ -313,18 +313,13 @@ function reflectionDates(count: number, daysSinceLast: number): Date[] {
 }
 
 async function main() {
-  console.log("Rensar befintlig data...");
-  await prisma.message.deleteMany();
-  await prisma.flag.deleteMany();
-  await prisma.aiFeedback.deleteMany();
-  await prisma.reflection.deleteMany();
-  await prisma.scheduleEntry.deleteMany();
-  await prisma.coachNote.deleteMany();
-  await prisma.session.deleteMany();
-  await prisma.playerProfile.deleteMany();
-  await prisma.teamPlan.deleteMany();
-  await prisma.user.deleteMany();
-  await prisma.club.deleteMany();
+  // Rör bara demoklubben. Founder-konton och riktiga klubbar lämnas orörda.
+  const existing = await prisma.club.findFirst({ where: { name: CLUB_NAME } });
+  if (existing) {
+    console.log(`Rensar tidigare demodata i "${CLUB_NAME}"...`);
+    await prisma.user.deleteMany({ where: { clubId: existing.id } });
+    await prisma.club.delete({ where: { id: existing.id } });
+  }
 
   const passwordHash = await bcrypt.hash(PASSWORD, 10);
 
@@ -440,7 +435,7 @@ async function main() {
   const players = await prisma.user.count({ where: { role: "PLAYER" } });
   const reflections = await prisma.reflection.count();
   console.log(`Klart: ${players} spelare, ${reflections} reflektioner, klubb "${club.name}".`);
-  console.log("Logga in med coach@matchmind.se / demo1234 eller emma@matchmind.se / demo1234");
+  console.log("Logga in med coach@matchmind.se eller emma@matchmind.se");
 }
 
 main()

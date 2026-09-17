@@ -1,12 +1,17 @@
 import { redirect } from "next/navigation";
+import { prisma } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
-import { ROLE } from "@/lib/constants";
+import { HOME_FOR_ROLE, ROLE } from "@/lib/constants";
 import { isMockMode } from "@/lib/ai";
 import { LoginForm } from "@/components/LoginForm";
 
 export default async function LoginPage() {
   const user = await getSessionUser();
-  if (user) redirect(user.role === ROLE.COACH ? "/coach" : "/player");
+  if (user) redirect(HOME_FOR_ROLE[user.role] ?? "/");
+
+  // Innan founder-kontot finns är setupen enda vägen in.
+  const founderCount = await prisma.user.count({ where: { role: ROLE.FOUNDER } });
+  if (founderCount === 0) redirect("/setup");
 
   return (
     <main className="flex min-h-dvh flex-col items-center justify-center px-4 py-10">

@@ -67,6 +67,12 @@ export default async function PlayerPage() {
             preview: lastMessageByPartner.get(mate.id) ?? null,
           }))}
           todayWeekday={todayWeekday()}
+          schedule={schedule.map((entry) => ({
+            weekday: entry.weekday,
+            time: entry.time,
+            focus: entry.focus,
+            intensity: entry.intensity,
+          }))}
         />
       </main>
     </div>

@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { ApiError, requireCoach } from "@/lib/auth";
+import { ApiError, requireCoachWithClub } from "@/lib/auth";
 import { apiError, readJson } from "@/lib/api";
 
 export async function GET() {
   try {
-    const coach = await requireCoach();
+    const coach = await requireCoachWithClub();
     const plan = await prisma.teamPlan.findUnique({ where: { clubId: coach.clubId } });
     return NextResponse.json({
       teamPlan: plan ? { text: plan.text, updatedAt: plan.updatedAt.toISOString() } : null,
@@ -17,7 +17,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const coach = await requireCoach();
+    const coach = await requireCoachWithClub();
     const { text } = await readJson<{ text?: string }>(request);
     if (typeof text !== "string") throw new ApiError(400, "Träningsplanen saknas");
 

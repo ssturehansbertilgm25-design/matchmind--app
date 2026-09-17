@@ -1,50 +1,59 @@
 // MatchMind — datamodell.
 //
-// Portabilitet: schemat använder inga SQLite-specifika konstruktioner. För att byta
-// till PostgreSQL (t.ex. Supabase) räcker det att ändra `provider` nedan till
-// "postgresql", peka DATABASE_URL mot databasen och köra en ny migration.
-// Därför används String (med dokumenterade värden) istället för Prisma-enum, eftersom
-// enum inte stöds av SQLite — String fungerar identiskt i båda databaserna.
+// PostgreSQL i både utveckling och drift. Rollen, intensiteten och flaggtypen lagras som
+// String med dokumenterade värden i stället för Prisma-enum: det håller schemat portabelt
+// och gör att nya värden kan läggas till utan en enum-migration i produktion.
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
 model Club {
-  id        String     @id @default(cuid())
+  id        String   @id @default(cuid())
   name      String
+  createdAt DateTime @default(now())
+
   users     User[]
   teamPlans TeamPlan[]
+  invites   Invite[]
 }
 
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
+  id           String    @id @default(cuid())
+  email        String    @unique
   passwordHash String
   name         String
-  /// COACH | PLAYER
+  /// FOUNDER | COACH | PLAYER
   role         String
-  clubId       String
-  createdAt    DateTime @default(now())
+  /// null för founders, som står utanför klubbstrukturen
+  clubId       String?
+  /// Avaktiverade konton kan inte logga in men data och historik finns kvar
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
-  club            Club           @relation(fields: [clubId], references: [id])
-  profile         PlayerProfile? @relation("ProfileUser")
-  coachedProfiles PlayerProfile[] @relation("ProfileCoach")
-  sessions        Session[]
-  reflections     Reflection[]
-  scheduleEntries ScheduleEntry[]
-  flags           Flag[]
-  notesAboutMe    CoachNote[]    @relation("NoteAboutPlayer")
-  notesIWrote     CoachNote[]    @relation("NoteByCoach")
-  sentMessages    Message[]      @relation("MessageFrom")
-  receivedMessages Message[]     @relation("MessageTo")
+  club             Club?           @relation(fields: [clubId], references: [id], onDelete: SetNull)
+  profile          PlayerProfile?  @relation("ProfileUser")
+  coachedProfiles  PlayerProfile[] @relation("ProfileCoach")
+  sessions         Session[]
+  reflections      Reflection[]
+  scheduleEntries  ScheduleEntry[]
+  flags            Flag[]
+  notesAboutMe     CoachNote[]     @relation("NoteAboutPlayer")
+  notesIWrote      CoachNote[]     @relation("NoteByCoach")
+  sentMessages     Message[]       @relation("MessageFrom")
+  receivedMessages Message[]       @relation("MessageTo")
+  invitesCreated   Invite[]        @relation("InviteCreatedBy")
+  auditEntries     AuditLog[]      @relation("AuditActor")
 
   @@index([clubId])
+  @@index([role])
 }
 
 model PlayerProfile {
@@ -59,21 +68,53 @@ model PlayerProfile {
   trainingAttendance Int     @default(0)
 
   user  User  @relation("ProfileUser", fields: [userId], references: [id], onDelete: Cascade)
-  coach User? @relation("ProfileCoach", fields: [coachId], references: [id])
+  coach User? @relation("ProfileCoach", fields: [coachId], references: [id], onDelete: SetNull)
 
   @@index([coachId])
 }
 
 model Session {
-  id        String   @id @default(cuid())
-  token     String   @unique
-  userId    String
-  expiresAt DateTime
-  createdAt DateTime @default(now())
+  id         String   @id @default(cuid())
+  /// SHA-256 av klientens token — klartext lagras aldrig
+  token      String   @unique
+  userId     String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  lastUsedAt DateTime @default(now())
+  userAgent  String?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([expiresAt])
+}
+
+/// Inbjudningar ersätter öppen registrering: konton skapas bara via en länk från en
+/// founder (alla roller) eller en tränare (spelare i den egna klubben).
+model Invite {
+  id          String    @id @default(cuid())
+  email       String
+  /// FOUNDER | COACH | PLAYER
+  role        String
+  clubId      String?
+  /// SHA-256 av inbjudningstoken
+  tokenHash   String    @unique
+  createdById String
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  /// Förifylls i acceptformuläret
+  name        String?
+  /// Sätts på PlayerProfile när en spelare accepterar
+  level       String?
+  birthYear   Int?
+
+  club      Club? @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  createdBy User  @relation("InviteCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([email])
+  @@index([clubId])
 }
 
 model Reflection {
@@ -119,7 +160,8 @@ model ScheduleEntry {
 
   player User @relation(fields: [playerId], references: [id], onDelete: Cascade)
 
-  @@index([playerId, weekday])
+  @@unique([playerId, weekday])
+  @@index([playerId])
 }
 
 model CoachNote {
@@ -154,6 +196,7 @@ model Flag {
   reason     String
   createdAt  DateTime  @default(now())
   resolvedAt DateTime?
+  resolvedBy String?
 
   player User @relation(fields: [playerId], references: [id], onDelete: Cascade)
 
@@ -171,4 +214,37 @@ model Message {
   to   User @relation("MessageTo", fields: [toUserId], references: [id], onDelete: Cascade)
 
   @@index([fromUserId, toUserId, createdAt])
+}
+
+/// Granskningslogg. Skrivs av founder-åtgärder och av varje break-glass-läsning av en
+/// spelares reflektionstext. Raderas aldrig av appen — det finns ingen DELETE-väg i koden.
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String
+  actorEmail String
+  /// t.ex. USER_ROLE_CHANGED, CLUB_DELETED, REFLECTION_TEXT_REVEALED
+  action     String
+  targetType String?
+  targetId   String?
+  /// Obligatoriskt skäl vid break-glass
+  reason     String?
+  meta       Json?
+  createdAt  DateTime @default(now())
+
+  actor User @relation("AuditActor", fields: [actorId], references: [id], onDelete: Cascade)
+
+  @@index([createdAt])
+  @@index([action])
+  @@index([actorId])
+}
+
+/// Bromsar lösenordsgissning. Rensas när inloggningen lyckas.
+model LoginAttempt {
+  id        String   @id @default(cuid())
+  email     String
+  ip        String
+  createdAt DateTime @default(now())
+
+  @@index([email, createdAt])
+  @@index([ip, createdAt])
 }

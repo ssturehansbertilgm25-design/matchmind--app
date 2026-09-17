@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { LogoutButton } from "./LogoutButton";
 
 export function Topbar({
@@ -30,6 +31,12 @@ export function Topbar({
             </span>
           ) : null}
           {right}
+          <Link
+            href="/account"
+            className="rounded-full border border-[rgba(255,255,255,0.18)] px-4 py-1.5 text-[12px] font-semibold text-[#c9d3cb] transition hover:bg-[rgba(255,255,255,0.08)]"
+          >
+            Konto
+          </Link>
           <LogoutButton />
         </div>
       </div>

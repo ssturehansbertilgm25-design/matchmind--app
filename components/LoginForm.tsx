@@ -3,22 +3,6 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-const DEMO_ACCOUNTS = [
-  {
-    label: "Tränare",
-    name: "Johan Wide",
-    email: "coach@matchmind.se",
-    description: "Ser hela truppen — sammanställd, aldrig råtext",
-  },
-  {
-    label: "Spelare",
-    name: "Emma Lindqvist",
-    email: "emma@matchmind.se",
-    description: "Reflektion, sparring och övningar",
-  },
-];
-const DEMO_PASSWORD = "demo1234";
-
 export function LoginForm({ demoMode }: { demoMode: boolean }) {
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -60,7 +44,7 @@ export function LoginForm({ demoMode }: { demoMode: boolean }) {
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             className="mm-input"
-            placeholder="namn@matchmind.se"
+            placeholder="namn@klubben.se"
           />
         </label>
         <label className="flex flex-col gap-1.5">
@@ -87,36 +71,11 @@ export function LoginForm({ demoMode }: { demoMode: boolean }) {
         </button>
       </form>
 
-      <div className="border-line mt-6 border-t pt-5">
-        <p className="mm-label mb-3">Demokonton — klicka för att fylla i</p>
-        <div className="flex flex-col gap-2">
-          {DEMO_ACCOUNTS.map((account) => (
-            <button
-              key={account.email}
-              type="button"
-              onClick={() => {
-                setEmail(account.email);
-                setPassword(DEMO_PASSWORD);
-                setError(null);
-              }}
-              className="border-line hover:border-brass flex flex-col items-start rounded-lg border px-3.5 py-2.5 text-left transition"
-            >
-              <span className="text-[13px] font-semibold">
-                {account.label} · {account.name}
-              </span>
-              <span className="text-ink-soft font-mono text-[11.5px]">
-                {account.email} / {DEMO_PASSWORD}
-              </span>
-              <span className="text-ink-soft mt-0.5 text-[11.5px]">{account.description}</span>
-            </button>
-          ))}
-        </div>
-        {demoMode ? (
-          <p className="text-ink-soft mt-4 text-[11.5px] italic">
-            AI:n körs i demoläge (MOCK_AI) — svaren är deterministiska exempelsvar.
-          </p>
-        ) : null}
-      </div>
+      <p className="text-ink-soft border-line mt-5 border-t pt-4 text-[11.5px] leading-relaxed">
+        Konton skapas via en inbjudningslänk från din klubb — det går inte att registrera sig
+        själv. Har du ingen länk, be din tränare eller klubbansvarig skicka en.
+        {demoMode ? " AI:n körs just nu i demoläge." : ""}
+      </p>
     </div>
   );
 }
