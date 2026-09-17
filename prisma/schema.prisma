@@ -1,0 +1,174 @@
+// MatchMind — datamodell.
+//
+// Portabilitet: schemat använder inga SQLite-specifika konstruktioner. För att byta
+// till PostgreSQL (t.ex. Supabase) räcker det att ändra `provider` nedan till
+// "postgresql", peka DATABASE_URL mot databasen och köra en ny migration.
+// Därför används String (med dokumenterade värden) istället för Prisma-enum, eftersom
+// enum inte stöds av SQLite — String fungerar identiskt i båda databaserna.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Club {
+  id        String     @id @default(cuid())
+  name      String
+  users     User[]
+  teamPlans TeamPlan[]
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  /// COACH | PLAYER
+  role         String
+  clubId       String
+  createdAt    DateTime @default(now())
+
+  club            Club           @relation(fields: [clubId], references: [id])
+  profile         PlayerProfile? @relation("ProfileUser")
+  coachedProfiles PlayerProfile[] @relation("ProfileCoach")
+  sessions        Session[]
+  reflections     Reflection[]
+  scheduleEntries ScheduleEntry[]
+  flags           Flag[]
+  notesAboutMe    CoachNote[]    @relation("NoteAboutPlayer")
+  notesIWrote     CoachNote[]    @relation("NoteByCoach")
+  sentMessages    Message[]      @relation("MessageFrom")
+  receivedMessages Message[]     @relation("MessageTo")
+
+  @@index([clubId])
+}
+
+model PlayerProfile {
+  id                 String  @id @default(cuid())
+  userId             String  @unique
+  level              String
+  birthYear          Int
+  guardianConsent    Boolean @default(false)
+  guardianEmail      String?
+  coachId            String?
+  /// 0–100, andel av schemalagda pass spelaren deltagit i
+  trainingAttendance Int     @default(0)
+
+  user  User  @relation("ProfileUser", fields: [userId], references: [id], onDelete: Cascade)
+  coach User? @relation("ProfileCoach", fields: [coachId], references: [id])
+
+  @@index([coachId])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Reflection {
+  id              String   @id @default(cuid())
+  playerId        String
+  /// 1–5
+  mood            Int
+  tag             String?
+  text            String?
+  sharedWithCoach Boolean  @default(false)
+  escalated       Boolean  @default(false)
+  createdAt       DateTime @default(now())
+
+  player     User        @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  aiFeedback AiFeedback?
+
+  @@index([playerId, createdAt])
+}
+
+model AiFeedback {
+  id           String   @id @default(cuid())
+  reflectionId String   @unique
+  diagnosis    String
+  technique    String
+  followup     String
+  model        String
+  createdAt    DateTime @default(now())
+
+  reflection Reflection @relation(fields: [reflectionId], references: [id], onDelete: Cascade)
+}
+
+model ScheduleEntry {
+  id          String  @id @default(cuid())
+  playerId    String
+  /// 0 = måndag ... 6 = söndag
+  weekday     Int
+  time        String?
+  focus       String
+  /// Axlar | Ben | Core | Rygg | Helkropp (null = inget styrkepass)
+  muscleGroup String?
+  /// HIGH | MEDIUM | LOW | REST
+  intensity   String
+
+  player User @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@index([playerId, weekday])
+}
+
+model CoachNote {
+  id        String   @id @default(cuid())
+  coachId   String
+  playerId  String
+  text      String
+  updatedAt DateTime @updatedAt
+
+  coach  User @relation("NoteByCoach", fields: [coachId], references: [id], onDelete: Cascade)
+  player User @relation("NoteAboutPlayer", fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([coachId, playerId])
+  @@index([playerId])
+}
+
+model TeamPlan {
+  id        String   @id @default(cuid())
+  clubId    String   @unique
+  text      String
+  updatedAt DateTime @updatedAt
+
+  club Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
+}
+
+model Flag {
+  id         String    @id @default(cuid())
+  playerId   String
+  /// ESCALATION | FOLLOWUP | DROPOUT_RISK
+  type       String
+  /// Aldrig reflektionens innehåll — bara en handlingsanvisning till tränaren.
+  reason     String
+  createdAt  DateTime  @default(now())
+  resolvedAt DateTime?
+
+  player User @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@index([playerId, resolvedAt])
+}
+
+model Message {
+  id         String   @id @default(cuid())
+  fromUserId String
+  toUserId   String
+  text       String
+  createdAt  DateTime @default(now())
+
+  from User @relation("MessageFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
+  to   User @relation("MessageTo", fields: [toUserId], references: [id], onDelete: Cascade)
+
+  @@index([fromUserId, toUserId, createdAt])
+}
