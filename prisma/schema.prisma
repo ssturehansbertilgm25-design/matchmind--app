@@ -10,7 +10,11 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  // Runtime: poolad anslutning (Supabase pgbouncer, port 6543) — tål serverless.
+  url       = env("DATABASE_URL")
+  // Migrationer: direktanslutning (port 5432). Pgbouncer klarar inte DDL i transaction mode.
+  // Kör du utan pooler kan DIRECT_URL sättas till samma värde som DATABASE_URL.
+  directUrl = env("DIRECT_URL")
 }
 
 model Club {

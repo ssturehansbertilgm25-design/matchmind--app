@@ -49,32 +49,33 @@ founder-konton eller riktiga klubbar, och kan köras om när som helst.
 
 ---
 
-## Deploy till Vercel + Neon
+## Deploy
 
-1. **Databas.** Skapa ett gratis projekt på [neon.tech](https://neon.tech) (eller Supabase).
-   Kopiera connection-stringen — den ska sluta med `?sslmode=require`.
-2. **Repo.** Pusha det här repot till GitHub och importera det i
-   [vercel.com/new](https://vercel.com/new). Vercel känner igen Next.js automatiskt.
-3. **Miljövariabler** i Vercel (Settings → Environment Variables):
+Stegvis guide för Supabase + Vercel finns i **[DEPLOY.md](DEPLOY.md)** — inklusive exakt
+vilka anslutningssträngar som ska vart, och vad man gör när något strular.
+
+### Kortversion
+
+1. **Databas.** Skapa ett Supabase-projekt. `DATABASE_URL` = transaction pooler (port 6543,
+   med `?pgbouncer=true&connection_limit=1`), `DIRECT_URL` = session pooler (port 5432).
+2. **Repo → Vercel.** Importera repot i [vercel.com/new](https://vercel.com/new).
+3. **Miljövariabler** i Vercel:
 
    | Variabel | Värde |
    | --- | --- |
-   | `DATABASE_URL` | connection-stringen från Neon |
+   | `DATABASE_URL` | transaction pooler-strängen |
+   | `DIRECT_URL` | session pooler-strängen (används av migrationer) |
    | `APP_URL` | `https://din-app.vercel.app` — annars pekar inbjudningslänkarna fel |
    | `ANTHROPIC_API_KEY` | nyckeln från [console.anthropic.com](https://console.anthropic.com) |
    | `ANTHROPIC_MODEL` | `claude-sonnet-5` (verifiera mot <https://docs.claude.com>) |
    | `MOCK_AI` | `0` när nyckeln är på plats, annars `1` |
    | `SETUP_TOKEN` | valfri egen kod — krävs då för att skapa founder-kontot |
 
-4. **Migrera databasen.** Kör en gång lokalt med Neon-URL:en i `.env`:
-   ```bash
-   npx prisma migrate deploy
-   ```
-   Eller sätt build-kommandot i Vercel till `prisma migrate deploy && next build`, så sker
-   det vid varje deploy.
+4. **Deploy.** `vercel-build`-scriptet kör `prisma migrate deploy` före bygget, så tabellerna
+   skapas automatiskt. Vill du hellre göra det i webbläsaren: klistra in
+   `prisma/supabase-setup.sql` i Supabase SQL Editor.
 5. **Första inloggningen.** Öppna `https://din-app.vercel.app/setup` och skapa
-   founder-kontot. Sätt `SETUP_TOKEN` innan första deployen om du vill vara säker på att
-   ingen hinner före.
+   founder-kontot. Ta bort `SETUP_TOKEN` efteråt.
 6. **Kontrollera.** `https://din-app.vercel.app/api/health` ska svara
    `{"status":"ok","database":"ok","aiMode":"live"}`.
 
